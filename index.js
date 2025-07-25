@@ -3,17 +3,17 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const employeeRoutes = require('./routes/employeelogin.route');
 const passwordRoute = require('./routes/forgotpassword.route');
+require('dotenv').config(); // ← Must be on top
 
 const app = express();
 app.use(bodyParser.json());
 
-// Connect to MongoDB
-mongoose.connect('mongodb+srv://TT:TT@akshay.r4q5410.mongodb.net/crm')
+// Connect to MongoDB using .env variable
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Use combined employee routes
-app.use('/api', employeeRoutes); // Now handles both /api/login and /api/signup
+app.use('/api', employeeRoutes); 
 app.use('/api/password', passwordRoute);
 
 app.listen(3000, () => console.log('Server running on port 3000'));

@@ -1,55 +1,17 @@
-// const User = require('../models/employeelogin.model');
-// const bcrypt = require('bcrypt');
-
-// // ✅ Password strength checker (reuse this)
-// function isStrongPassword(password) {
-//   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/.test(password);
-// }
-
-// exports.resetPassword = async (req, res) => {
-//   const { email, newpassword } = req.body;
-
-//   if (!email || !newpassword) {
-//     return res.status(400).json({ error: 'Email and new password required.' });
-//   }
-
-//   // ✅ Check password strength
-//   if (!isStrongPassword(newpassword)) {
-//     return res.status(400).json({
-//       error: 'Password must be at least 8 characters and include uppercase, lowercase, digit, and special character.'
-//     });
-//   }
-
-//   try {
-//     const hashed = await bcrypt.hash(newpassword, 10);
-//     const user = await User.findOneAndUpdate(
-//       { email },
-//       { password: hashed }
-//     );
-
-//     if (!user) {
-//       return res.status(404).json({ error: 'User not found.' });
-//     }
-
-//     res.json({ message: 'Password reset successful.' });
-//   } catch (err) {
-//     console.error('Reset error:', err);
-//     res.status(500).json({ error: 'Server error.' });
-//   }
-// };
 
 
 const User = require('../models/employeelogin.model');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
-const JWT_SECRET = 'your_jwt_secret'; // Use an environment variable in production
+// OTP expires in 15 minutes
+const OTP_EXPIRY_MINUTES = 15;
 
 function isStrongPassword(password) {
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/.test(password);
 }
 
-// 1. Request password reset (generate token)
+// 1. Request password reset (generate OTP)
 exports.requestReset = async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required.' });
@@ -57,19 +19,25 @@ exports.requestReset = async (req, res) => {
   const user = await User.findOne({ email });
   if (!user) return res.status(404).json({ error: 'User not found.' });
 
-  // Generate a token valid for 15 minutes
-  const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '15m' });
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+  const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60000); // 15 minutes from now
 
-  // TODO: Send token via email. For demo, return in response:
-  res.json({ message: 'Password reset token generated.', token });
+  user.otp = otp;
+  user.otpExpiry = otpExpiry;
+  await user.save();
+
+  // TODO: Send OTP via email
+  console.log(`OTP for ${email}: ${otp}`);
+
+  res.json({ message: 'OTP sent to registered email.' });
 };
 
-// 2. Reset password using token
+// 2. Reset password using OTP
 exports.resetPassword = async (req, res) => {
-  const { token, newpassword } = req.body;
+  const { email, otp, newpassword } = req.body;
 
-  if (!token || !newpassword) {
-    return res.status(400).json({ error: 'Token and new password required.' });
+  if (!email || !otp || !newpassword) {
+    return res.status(400).json({ error: 'Email, OTP, and new password required.' });
   }
 
   if (!isStrongPassword(newpassword)) {
@@ -78,21 +46,23 @@ exports.resetPassword = async (req, res) => {
     });
   }
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const hashed = await bcrypt.hash(newpassword, 10);
-    const user = await User.findOneAndUpdate(
-      { email: decoded.email },
-      { password: hashed }
-    );
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    res.json({ message: 'Password reset successful.' });
-  } catch (err) {
-    console.error('Reset error:', err);
-    res.status(400).json({ error: 'Invalid or expired token.' });
+  if (!user.otp || user.otp !== otp) {
+    return res.status(400).json({ error: 'Invalid OTP.' });
   }
+
+  if (user.otpExpiry < Date.now()) {
+    return res.status(400).json({ error: 'OTP expired.' });
+  }
+
+  const hashedPassword = await bcrypt.hash(newpassword, 10);
+
+  user.password = hashedPassword;
+  user.otp = undefined;
+  user.otpExpiry = undefined;
+  await user.save();
+
+  res.json({ message: 'Password reset successful.' });
 };
