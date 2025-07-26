@@ -2,8 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const employeeRoutes = require('./routes/employeelogin.route');
-const passwordRoute = require('./routes/forgotpassword.route');
-require('dotenv').config(); // ← Must be on top
+const passwordRoute = require('./routes/employeelogin.route');
+require('dotenv').config(); 
 
 const app = express();
 app.use(bodyParser.json());
