@@ -21,8 +21,8 @@ function isStrongPassword(password) {
 
 exports.signup = async (req, res) => {
   
-  console.log("req.body:", req.body);
-  console.log("req.file:", req.file);
+  // console.log("req.body:", req.body);
+  // console.log("req.file:", req.file);
 
   const {
     email,
@@ -87,50 +87,9 @@ exports.signup = async (req, res) => {
 };
 
 
-
-// exports.login = async (req, res) => {
-//   console.log("Login req.body:", req.body);
-//   console.log("Login req.file:", req.file);
-//   const { email, password } = req.body;
-
-//   // 1. Check if email and password are provided
-//   if (!email || !password) {
-//     return res.status(400).json({ error: "Email and password are required." });
-//   }
-
-//   try {
-//     // 2. Find the user in the database
-//     const user = await User.findOne({ email });
-
-//     if (!user) {
-//       return res.status(401).json({ error: "Invalid credentials." });
-//     }
-
-//     // 3. Compare the provided password with the hashed one
-//     const match = await bcrypt.compare(password, user.password);
-
-//     if (!match) {
-//       return res.status(401).json({ error: "Invalid credentials." });
-//     }
-
-//     // 4. Create JWT
-//     const token = jwt.sign(
-//       { userId: user._id, email: user.email },
-//       JWT_SECRET,
-//       { expiresIn: "1h" }
-//     );
-
-//     // 5. Respond with token
-//     res.json({ message: "Login successful.", token });
-//   } catch (err) {
-//     console.error("Login error:", err);
-//     res.status(500).json({ error: "Server error." });
-//   }
-// };
-
 exports.login = async (req, res) => {
-  console.log("Login req.body:", req.body);
-  console.log("Login req.file:", req.file);
+  // console.log("Login req.body:", req.body);
+  // console.log("Login req.file:", req.file);
 
   const { email, password } = req.body;
 
