@@ -1,20 +1,19 @@
+
 const express = require('express');
 const router = express.Router();
 const employeelogin = require('../controllers/employeelogin.controller');
-const forgotPasswordController = require('../controllers/employeelogin.controller');
+const upload = require('../middlewares/upload'); // Import multer middleware if profile photo is required
 
-
-
-// POST /api/login
+// Login route
 router.post('/login', employeelogin.login);
-// POST /api/signup
-router.post('/signup', employeelogin.signup);
 
-// Request reset (get token)
-router.post('/request', forgotPasswordController.requestReset);
-// Reset password (use token)
-router.post('/reset', forgotPasswordController.resetPassword);
+// Signup route with profile photo upload
+router.post('/signup', upload.single('photo'), employeelogin.signup);
 
+// Request password reset OTP
+router.post('/request', employeelogin.requestReset);
 
+// Reset password using OTP
+router.post('/reset', employeelogin.resetPassword);
 
 module.exports = router;

@@ -15,69 +15,166 @@ const OTP_EXPIRY_MINUTES = 15; // OTP expires in 15 minutes
 function isStrongPassword(password) {
   // At least 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/.test(password);
+  
 }
 
+
 exports.signup = async (req, res) => {
-  const { email, password } = req.body;
-  if (!isStrongPassword(password)) {
-    return res
-      .status(400)
-      .json({
-        error:
-          "Password must be at least 8 characters and include uppercase, lowercase, digit, and special character.",
-      });
+  
+  console.log("req.body:", req.body);
+  console.log("req.file:", req.file);
+
+  const {
+    email,
+    password,
+    name,
+    companyId,
+    companyName,
+    isSalesExecutiveLogin
+  } = req.body;
+
+  if (!req.file) {
+    return res.status(400).json({ error: "Profile photo is required." });
   }
+
+  const photo = req.file.path; // Cloudinary image URL
+
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({
+      error: "Password must be at least 8 characters and include uppercase, lowercase, digit, and special character.",
+    });
+  }
+
   try {
-    const hashed = await bcrypt.hash(password, 10);
-    const user = new User({ email, password: hashed });
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      email,
+      password: hashedPassword,
+      name,
+      photo,
+      companyId,
+      companyName,
+      isSalesExecutiveLogin,
+    });
+
     await user.save();
-    res.status(201).json({ message: "Signup successful." });
+
+    const token = jwt.sign(
+      { empId: user._id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.status(201).json({
+      message: "Signup successful",
+      token,
+      isSalesExecutiveLogin: user.isSalesExecutiveLogin,
+      photo: user.photo,
+      id: user._id,
+      name: user.name,
+      companyId: user.companyId,
+      companyName: user.companyName
+    });
   } catch (err) {
     if (err.code === 11000) {
       res.status(400).json({ error: "Email already exists." });
     } else {
+      console.error("Signup error:", err);
       res.status(500).json({ error: "Server error." });
     }
   }
 };
 
+
+
+// exports.login = async (req, res) => {
+//   console.log("Login req.body:", req.body);
+//   console.log("Login req.file:", req.file);
+//   const { email, password } = req.body;
+
+//   // 1. Check if email and password are provided
+//   if (!email || !password) {
+//     return res.status(400).json({ error: "Email and password are required." });
+//   }
+
+//   try {
+//     // 2. Find the user in the database
+//     const user = await User.findOne({ email });
+
+//     if (!user) {
+//       return res.status(401).json({ error: "Invalid credentials." });
+//     }
+
+//     // 3. Compare the provided password with the hashed one
+//     const match = await bcrypt.compare(password, user.password);
+
+//     if (!match) {
+//       return res.status(401).json({ error: "Invalid credentials." });
+//     }
+
+//     // 4. Create JWT
+//     const token = jwt.sign(
+//       { userId: user._id, email: user.email },
+//       JWT_SECRET,
+//       { expiresIn: "1h" }
+//     );
+
+//     // 5. Respond with token
+//     res.json({ message: "Login successful.", token });
+//   } catch (err) {
+//     console.error("Login error:", err);
+//     res.status(500).json({ error: "Server error." });
+//   }
+// };
+
 exports.login = async (req, res) => {
+  console.log("Login req.body:", req.body);
+  console.log("Login req.file:", req.file);
+
   const { email, password } = req.body;
 
-  // 1. Check if email and password are provided
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required." });
   }
 
   try {
-    // 2. Find the user in the database
     const user = await User.findOne({ email });
 
     if (!user) {
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
-    // 3. Compare the provided password with the hashed one
     const match = await bcrypt.compare(password, user.password);
 
     if (!match) {
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
-    // 4. Create JWT
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // 5. Respond with token
-    res.json({ message: "Login successful.", token });
+    res.status(200).json({
+      message: "Login successful.",
+      token,
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      photo: user.photo, 
+      isSalesExecutiveLogin: user.isSalesExecutiveLogin,
+      companyId: user.companyId,
+      companyName: user.companyName
+    });
+
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Server error." });
   }
 };
+
 
 exports.requestReset = async (req, res) => {
   const { email } = req.body;
